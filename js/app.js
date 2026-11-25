@@ -210,34 +210,35 @@ function navigate(view) {
   })[view];
 }
 
-
+// Open the appropriate form and disable hidden fields.
 function openDialog(type) {
   $("record-form").reset();
   $("form-error").textContent = "";
 
   $("record-type").value = type;
 
+  const isPayment = type === "payment";
+
   $("document-fields").classList.toggle(
     "hidden",
-    type === "payment"
+    isPayment
   );
 
   $("payment-fields").classList.toggle(
     "hidden",
-    type !== "payment"
+    !isPayment
   );
 
-  // Disable hidden fields so they don't block form submission.
   $("document-fields")
     .querySelectorAll("input, select, textarea")
     .forEach(field => {
-      field.disabled = type === "payment";
+      field.disabled = isPayment;
     });
 
   $("payment-fields")
     .querySelectorAll("input, select, textarea")
     .forEach(field => {
-      field.disabled = type !== "payment";
+      field.disabled = !isPayment;
     });
 
   $("dialog-title").textContent =
@@ -254,15 +255,12 @@ function openDialog(type) {
   $("due-date").value = today();
   $("payment-date").value = today();
 
-  if (type === "payment") {
+  if (isPayment) {
     populatePaymentDocuments();
   }
 
   $("record-dialog").showModal();
 }
-
-
-  
 
 function populatePaymentDocuments() {
   const direction = $("payment-direction").value;
