@@ -1,336 +1,500 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="LedgerDesk — browser-based accounting operations and financial data management.">
-  <title>LedgerDesk | Accounting Operations</title>
-  <link rel="stylesheet" href="css/styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#17243b">
+    <meta name="description" content="LedgerDesk — simple accounts receivable and payable management.">
+    <title>LedgerDesk | Financial Workspace</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <aside class="sidebar">
-    <a class="brand" href="#">
-      <span class="brand-mark">L</span>
-      <span>LedgerDesk<small>FINANCIAL OPERATIONS</small></span>
-    </a>
 
-    <p class="nav-label">WORKSPACE</p>
+    <div class="app-shell">
 
-    <button class="nav-item active" data-view="dashboard">▦ <span>Dashboard</span></button>
-    <button class="nav-item" data-view="receivables">↗ <span>Accounts receivable</span></button>
-    <button class="nav-item" data-view="payables">↙ <span>Accounts payable</span></button>
-    <button class="nav-item" data-view="payments">⇄ <span>Payments</span></button>
-    <button class="nav-item" data-view="reports">▤ <span>Reports & data</span></button>
+        <aside class="sidebar">
+            <a class="brand" href="#" aria-label="LedgerDesk home">
+                <span class="brand-mark">L</span>
+                <span>LedgerDesk</span>
+            </a>
 
-    <div class="sidebar-bottom">
-      <span class="status-dot"></span> Local workspace
-      <small>Data stays in this browser</small>
+            <div class="nav-label">WORKSPACE</div>
+
+            <nav class="main-nav" aria-label="Main navigation">
+                <button class="nav-item active" data-view="dashboard" aria-current="page">
+                    <span class="nav-icon">▦</span>
+                    <span class="nav-text">Dashboard</span>
+                </button>
+                <button class="nav-item" data-view="receivables">
+                    <span class="nav-icon">↗</span>
+                    <span class="nav-text">Accounts receivable</span>
+                </button>
+                <button class="nav-item" data-view="payables">
+                    <span class="nav-icon">↙</span>
+                    <span class="nav-text">Accounts payable</span>
+                </button>
+                <button class="nav-item" data-view="contacts">
+                    <span class="nav-icon">♙</span>
+                    <span class="nav-text">Contacts</span>
+                </button>
+                <button class="nav-item" data-view="payments">
+                    <span class="nav-icon">⇄</span>
+                    <span class="nav-text">Payments</span>
+                </button>
+                <button class="nav-item" data-view="reports">
+                    <span class="nav-icon">▤</span>
+                    <span class="nav-text">Reports &amp; data</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <span class="status-dot"></span>
+                Local workspace
+            </div>
+        </aside>
+
+        <main class="main">
+
+            <header class="topbar">
+                <div class="topbar-heading">
+                    <span class="eyebrow">FINANCIAL WORKSPACE</span>
+                    <h1 id="page-title">Dashboard</h1>
+                </div>
+                <div class="local-pill">
+                    <span class="status-dot"></span>
+                    Your local workspace
+                </div>
+            </header>
+
+            <!-- DASHBOARD -->
+            <section class="view active" id="dashboard-view">
+                <div class="welcome">
+                    <div>
+                        <h2>Good to see you.</h2>
+                        <p>Here's what's happening with your business.</p>
+                    </div>
+                    <span id="current-date"></span>
+                </div>
+
+                <div class="metrics">
+                    <article class="metric">
+                        <span class="metric-label">TOTAL RECEIVABLES</span>
+                        <strong id="metric-receivables">$0.00</strong>
+                        <span class="metric-note">Outstanding customer balances</span>
+                    </article>
+                    <article class="metric">
+                        <span class="metric-label">TOTAL PAYABLES</span>
+                        <strong id="metric-payables">$0.00</strong>
+                        <span class="metric-note">Outstanding supplier balances</span>
+                    </article>
+                    <article class="metric">
+                        <span class="metric-label">OVERDUE INVOICES</span>
+                        <strong id="metric-overdue">0</strong>
+                        <span class="metric-note">Require your attention</span>
+                    </article>
+                    <article class="metric">
+                        <span class="metric-label">RECORDED DOCUMENTS</span>
+                        <strong id="metric-documents">0</strong>
+                        <span class="metric-note">Invoices and supplier bills</span>
+                    </article>
+                </div>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Recent activity</h3>
+                            <p>Your latest financial records</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>DATE</th>
+                                    <th>REFERENCE</th>
+                                    <th>TYPE</th>
+                                    <th>CONTACT</th>
+                                    <th>AMOUNT</th>
+                                    <th>STATUS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-activity">
+                                <tr>
+                                    <td colspan="6" class="empty-state">No activity yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- ACCOUNTS RECEIVABLE -->
+            <section class="view" id="receivables-view" hidden>
+                <div class="section-intro">
+                    <div>
+                        <h2>Accounts receivable</h2>
+                        <p>Manage customer invoices and outstanding balances.</p>
+                    </div>
+                    <button class="primary-button" id="add-invoice">+ New invoice</button>
+                </div>
+
+                <div class="metrics compact-metrics">
+                    <article class="metric">
+                        <span class="metric-label">OUTSTANDING</span>
+                        <strong id="ar-total">$0.00</strong>
+                    </article>
+                    <article class="metric">
+                        <span class="metric-label">OPEN INVOICES</span>
+                        <strong id="ar-count">0</strong>
+                    </article>
+                </div>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Customer invoices</h3>
+                            <p>Invoices issued to your customers</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>REFERENCE</th>
+                                    <th>CUSTOMER</th>
+                                    <th>ISSUED</th>
+                                    <th>DUE DATE</th>
+                                    <th>AMOUNT</th>
+                                    <th>BALANCE</th>
+                                    <th>STATUS</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receivables-table"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- ACCOUNTS PAYABLE -->
+            <section class="view" id="payables-view" hidden>
+                <div class="section-intro">
+                    <div>
+                        <h2>Accounts payable</h2>
+                        <p>Track supplier bills and payments due.</p>
+                    </div>
+                    <button class="primary-button" id="add-bill">+ New bill</button>
+                </div>
+
+                <div class="metrics compact-metrics">
+                    <article class="metric">
+                        <span class="metric-label">OUTSTANDING</span>
+                        <strong id="ap-total">$0.00</strong>
+                    </article>
+                    <article class="metric">
+                        <span class="metric-label">OPEN BILLS</span>
+                        <strong id="ap-count">0</strong>
+                    </article>
+                </div>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Supplier bills</h3>
+                            <p>Bills received from your suppliers</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>REFERENCE</th>
+                                    <th>SUPPLIER</th>
+                                    <th>RECEIVED</th>
+                                    <th>DUE DATE</th>
+                                    <th>AMOUNT</th>
+                                    <th>BALANCE</th>
+                                    <th>STATUS</th>
+                                    <th>ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody id="payables-table"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- CONTACTS -->
+            <section class="view" id="contacts-view" hidden>
+                <div class="section-intro">
+                    <div>
+                        <h2>Contacts</h2>
+                        <p>Manage your customers and suppliers separately.</p>
+                    </div>
+                </div>
+
+                <div class="contact-tabs" role="tablist" aria-label="Contact type">
+                    <button class="contact-tab active" type="button" data-contact-tab="customers" role="tab" aria-selected="true">
+                        Customers
+                    </button>
+                    <button class="contact-tab" type="button" data-contact-tab="suppliers" role="tab" aria-selected="false">
+                        Suppliers
+                    </button>
+                </div>
+
+                <section class="contact-section" id="customers-section">
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <div>
+                                <h3>Customer directory</h3>
+                                <p>People and businesses that owe you money.</p>
+                            </div>
+                            <button class="primary-button" id="add-customer">+ Add customer</button>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>CUSTOMER ID</th>
+                                        <th>NAME</th>
+                                        <th>CONTACT PERSON</th>
+                                        <th>EMAIL</th>
+                                        <th>PHONE</th>
+                                        <th>STATUS</th>
+                                        <th>ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-table">
+                                    <tr>
+                                        <td colspan="7" class="empty-state">Customer management will be available when the directory is connected.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="contact-section" id="suppliers-section" hidden>
+                    <div class="panel">
+                        <div class="panel-heading">
+                            <div>
+                                <h3>Supplier directory</h3>
+                                <p>People and businesses you owe money to.</p>
+                            </div>
+                            <button class="primary-button" id="add-supplier">+ Add supplier</button>
+                        </div>
+                        <div class="table-wrap">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>SUPPLIER ID</th>
+                                        <th>NAME</th>
+                                        <th>CONTACT PERSON</th>
+                                        <th>EMAIL</th>
+                                        <th>PHONE</th>
+                                        <th>STATUS</th>
+                                        <th>ACTIONS</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="suppliers-table">
+                                    <tr>
+                                        <td colspan="7" class="empty-state">Supplier management will be available when the directory is connected.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- PAYMENTS -->
+            <section class="view" id="payments-view" hidden>
+                <div class="section-intro">
+                    <div>
+                        <h2>Payments</h2>
+                        <p>Record and review money received and paid.</p>
+                    </div>
+                    <button class="primary-button" id="add-payment">+ Record payment</button>
+                </div>
+
+                <section class="panel">
+                    <div class="panel-heading">
+                        <div>
+                            <h3>Payment register</h3>
+                            <p>All recorded payment transactions</p>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>DATE</th>
+                                    <th>TYPE</th>
+                                    <th>REFERENCE</th>
+                                    <th>CONTACT</th>
+                                    <th>NOTE</th>
+                                    <th>AMOUNT</th>
+                                </tr>
+                            </thead>
+                            <tbody id="payments-table"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </section>
+
+            <!-- REPORTS -->
+            <section class="view" id="reports-view" hidden>
+                <div class="section-intro">
+                    <div>
+                        <h2>Reports &amp; data</h2>
+                        <p>Review your records and manage your data exports.</p>
+                    </div>
+                </div>
+
+                <div class="report-grid">
+                    <article class="panel report-card">
+                        <div class="report-icon">↗</div>
+                        <h3>Accounts receivable</h3>
+                        <p>Review customer invoices, balances, and payment status.</p>
+                        <button class="secondary-button" data-report="receivables">View receivables</button>
+                    </article>
+
+                    <article class="panel report-card">
+                        <div class="report-icon">↙</div>
+                        <h3>Accounts payable</h3>
+                        <p>Review supplier bills and outstanding obligations.</p>
+                        <button class="secondary-button" data-report="payables">View payables</button>
+                    </article>
+
+                    <article class="panel report-card">
+                        <div class="report-icon">↓</div>
+                        <h3>Export records</h3>
+                        <p>Download your invoices and bills as a CSV file.</p>
+                        <button class="secondary-button" id="export-csv">Export CSV</button>
+                    </article>
+
+                    <article class="panel report-card">
+                        <div class="report-icon">◈</div>
+                        <h3>Data backup</h3>
+                        <p>Download a JSON backup of your LedgerDesk records.</p>
+                        <button class="secondary-button" id="export-json">Download backup</button>
+                    </article>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- MOBILE NAVIGATION -->
+        <nav class="mobile-nav" aria-label="Mobile navigation">
+            <button class="mobile-nav-item active" data-view="dashboard" aria-current="page">
+                <span class="mobile-nav-icon">▦</span>
+                <span>Home</span>
+            </button>
+            <button class="mobile-nav-item" data-view="receivables">
+                <span class="mobile-nav-icon">↗</span>
+                <span>AR</span>
+            </button>
+            <button class="mobile-nav-item" data-view="payables">
+                <span class="mobile-nav-icon">↙</span>
+                <span>AP</span>
+            </button>
+            <button class="mobile-nav-item" data-view="contacts">
+                <span class="mobile-nav-icon">♙</span>
+                <span>Contacts</span>
+            </button>
+            <button class="mobile-nav-item" data-view="more">
+                <span class="mobile-nav-icon">•••</span>
+                <span>More</span>
+            </button>
+        </nav>
+
     </div>
-  </aside>
 
-  <main class="main">
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">ACCOUNTING OPERATIONS</p>
-        <h1 id="page-title">Dashboard</h1>
-      </div>
-      <div class="top-actions">
-        <span class="local-pill">● LOCAL DATABASE</span>
-        <button class="button primary" id="quick-add">＋ New record</button>
-      </div>
-    </header>
+    <!-- RECORD DIALOG -->
+    <dialog id="record-dialog">
+        <form id="record-form">
+            <div class="dialog-header">
+                <div>
+                    <span class="eyebrow">LEDGERDESK</span>
+                    <h2 id="dialog-title">New invoice</h2>
+                </div>
+                <button type="button" class="icon-button" id="close-dialog" aria-label="Close dialog">×</button>
+            </div>
 
-    <section id="dashboard-view" class="view">
-      <div class="welcome">
-        <div>
-          <h2>Financial overview</h2>
-          <p>Monitor invoices, obligations and payment activity.</p>
-        </div>
-        <span id="today-label"></span>
-      </div>
+            <input type="hidden" id="record-type">
+            <input type="hidden" id="editing-id">
 
-      <div class="metrics">
-        <article class="metric">
-          <span>OPEN RECEIVABLES</span>
-          <strong id="metric-ar">$0.00</strong>
-          <small>Unpaid customer invoices</small>
-        </article>
-        <article class="metric">
-          <span>OPEN PAYABLES</span>
-          <strong id="metric-ap">$0.00</strong>
-          <small>Unpaid supplier bills</small>
-        </article>
-        <article class="metric">
-          <span>OVERDUE RECEIVABLES</span>
-          <strong id="metric-overdue">$0.00</strong>
-          <small>Past-due customer balances</small>
-        </article>
-        <article class="metric">
-          <span>RECORDS TRACKED</span>
-          <strong id="metric-count">0</strong>
-          <small>Invoices, bills and payments</small>
-        </article>
-      </div>
+            <div id="document-fields">
+                <div class="form-group">
+                    <label for="reference">Reference number</label>
+                    <input id="reference" name="reference" required maxlength="60" placeholder="e.g. INV-1001">
+                </div>
 
-      <div class="panel">
-        <div class="panel-heading">
-          <div>
-            <h2>Recent activity</h2>
-            <p>Your latest financial records</p>
-          </div>
-          <button class="button secondary" data-go="receivables">View receivables</button>
-        </div>
+                <div class="form-group">
+                    <label for="counterparty">Customer / Supplier</label>
+                    <input id="counterparty" name="counterparty" required maxlength="120" placeholder="Business or contact name">
+                </div>
 
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>TYPE</th>
-                <th>REFERENCE</th>
-                <th>COUNTERPARTY</th>
-                <th>DATE</th>
-                <th>AMOUNT</th>
-                <th>STATUS</th>
-              </tr>
-            </thead>
-            <tbody id="recent-rows"></tbody>
-          </table>
-        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="issue-date">Issue date</label>
+                        <input type="date" id="issue-date" name="issueDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="due-date">Due date</label>
+                        <input type="date" id="due-date" name="dueDate" required>
+                    </div>
+                </div>
 
-        <p class="empty-state" id="recent-empty">
-          No records yet. Add an invoice or bill to begin.
-        </p>
-      </div>
+                <div class="form-group">
+                    <label for="amount">Total amount</label>
+                    <input type="number" id="amount" name="amount" min="0.01" step="0.01" required placeholder="0.00">
+                </div>
+            </div>
 
-      <div class="notice">
-        <strong>Prototype scope:</strong>
-        LedgerDesk is an operational recordkeeping demonstration,
-        not a general ledger, tax system, or substitute for professional
-        accounting review. Data is stored locally in this browser.
-      </div>
-    </section>
+            <div id="payment-fields" hidden>
+                <div class="form-group">
+                    <label for="payment-direction">Payment type</label>
+                    <select id="payment-direction" name="direction">
+                        <option value="received">Money received</option>
+                        <option value="paid">Money paid</option>
+                    </select>
+                </div>
 
-    <section id="receivables-view" class="view hidden">
-      <div class="section-intro">
-        <div>
-          <h2>Accounts receivable</h2>
-          <p>Track customer invoices and amounts owed to your business.</p>
-        </div>
-        <button class="button primary" data-add="invoice">＋ Add invoice</button>
-      </div>
+                <div class="form-group">
+                    <label for="payment-document">Related invoice / bill</label>
+                    <select id="payment-document" name="documentId" required></select>
+                </div>
 
-      <div class="panel">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>INVOICE</th>
-                <th>CUSTOMER</th>
-                <th>ISSUED</th>
-                <th>DUE</th>
-                <th>INVOICE AMOUNT</th>
-                <th>OPEN BALANCE</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody id="ar-rows"></tbody>
-          </table>
-        </div>
-        <p class="empty-state" id="ar-empty">No customer invoices recorded.</p>
-      </div>
-    </section>
+                <div class="form-group">
+                    <label for="payment-date">Payment date</label>
+                    <input type="date" id="payment-date" name="paymentDate">
+                </div>
 
-    <section id="payables-view" class="view hidden">
-      <div class="section-intro">
-        <div>
-          <h2>Accounts payable</h2>
-          <p>Track supplier bills and amounts your business owes.</p>
-        </div>
-        <button class="button primary" data-add="bill">＋ Add bill</button>
-      </div>
+                <div class="form-group">
+                    <label for="payment-amount">Payment amount</label>
+                    <input type="number" id="payment-amount" name="paymentAmount" min="0.01" step="0.01" placeholder="0.00">
+                </div>
 
-      <div class="panel">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>BILL</th>
-                <th>SUPPLIER</th>
-                <th>ISSUED</th>
-                <th>DUE</th>
-                <th>BILL AMOUNT</th>
-                <th>OPEN BALANCE</th>
-                <th>STATUS</th>
-                <th>ACTIONS</th>
-              </tr>
-            </thead>
-            <tbody id="ap-rows"></tbody>
-          </table>
-        </div>
-        <p class="empty-state" id="ap-empty">No supplier bills recorded.</p>
-      </div>
-    </section>
+                <div class="form-group">
+                    <label for="payment-note">Note (optional)</label>
+                    <input id="payment-note" name="note" maxlength="200" placeholder="Payment details">
+                </div>
+            </div>
 
-    <section id="payments-view" class="view hidden">
-      <div class="section-intro">
-        <div>
-          <h2>Payments</h2>
-          <p>Record receipts and disbursements against existing documents.</p>
-        </div>
-        <button class="button primary" data-add="payment">＋ Record payment</button>
-      </div>
+            <div class="dialog-actions">
+                <button type="button" class="secondary-button" id="cancel-dialog">Cancel</button>
+                <button type="submit" class="primary-button" id="save-record">Save record</button>
+            </div>
+        </form>
+    </dialog>
 
-      <div class="panel">
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>DATE</th>
-                <th>DIRECTION</th>
-                <th>DOCUMENT</th>
-                <th>COUNTERPARTY</th>
-                <th>AMOUNT</th>
-                <th>NOTE</th>
-              </tr>
-            </thead>
-            <tbody id="payment-rows"></tbody>
-          </table>
-        </div>
-        <p class="empty-state" id="payment-empty">No payments recorded.</p>
-      </div>
-    </section>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-    <section id="reports-view" class="view hidden">
-      <div class="section-intro">
-        <div>
-          <h2>Reports & data</h2>
-          <p>Export your records for review or further analysis.</p>
-        </div>
-      </div>
-
-      <div class="report-grid">
-        <article class="report-card">
-          <span class="report-icon">↗</span>
-          <h3>Receivables register</h3>
-          <p>Invoices, payments applied and outstanding balances.</p>
-          <button class="button secondary" id="export-ar">Export AR CSV</button>
-        </article>
-
-        <article class="report-card">
-          <span class="report-icon">↙</span>
-          <h3>Payables register</h3>
-          <p>Supplier bills, payments applied and outstanding balances.</p>
-          <button class="button secondary" id="export-ap">Export AP CSV</button>
-        </article>
-
-        <article class="report-card">
-          <span class="report-icon">⇄</span>
-          <h3>Payment register</h3>
-          <p>Recorded receipts and disbursements.</p>
-          <button class="button secondary" id="export-payments">Export payments CSV</button>
-        </article>
-
-        <article class="report-card">
-          <span class="report-icon">⬇</span>
-          <h3>Full data backup</h3>
-          <p>Download all LedgerDesk records as a JSON backup.</p>
-          <button class="button secondary" id="export-backup">Download JSON backup</button>
-        </article>
-      </div>
-
-      <div class="notice warning">
-        <strong>Data safety:</strong>
-        This prototype stores records in the current browser profile.
-        Export regular backups. Clearing browser data or changing devices
-        may make these records unavailable.
-      </div>
-    </section>
-  </main>
-
-  <dialog id="record-dialog">
-    <form id="record-form">
-      <div class="dialog-heading">
-        <div>
-          <p class="eyebrow">LEDGERDESK RECORD</p>
-          <h2 id="dialog-title">New invoice</h2>
-        </div>
-        <button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button>
-      </div>
-
-      <input type="hidden" id="record-type">
-
-      <div id="document-fields">
-        <label>
-          Reference number
-          <input id="reference" required maxlength="40" placeholder="INV-1001">
-        </label>
-
-        <label id="counterparty-label">
-          Customer name
-          <input id="counterparty" required maxlength="100" placeholder="Business or individual">
-        </label>
-
-        <div class="form-row">
-          <label>
-            Issue date
-            <input id="issue-date" type="date" required>
-          </label>
-          <label>
-            Due date
-            <input id="due-date" type="date" required>
-          </label>
-        </div>
-
-        <label>
-          Amount (USD)
-          <input id="amount" type="number" min="0.01" step="0.01" required placeholder="0.00">
-        </label>
-      </div>
-
-      <div id="payment-fields" class="hidden">
-        <label>
-          Payment direction
-          <select id="payment-direction">
-            <option value="in">Receipt — customer paid us</option>
-            <option value="out">Disbursement — we paid supplier</option>
-          </select>
-        </label>
-
-        <label>
-          Apply to document
-          <select id="payment-document" required></select>
-        </label>
-
-        <div class="form-row">
-          <label>
-            Payment date
-            <input id="payment-date" type="date" required>
-          </label>
-          <label>
-            Amount (USD)
-            <input id="payment-amount" type="number" min="0.01" step="0.01" required>
-          </label>
-        </div>
-
-        <label>
-          Note (optional)
-          <input id="payment-note" maxlength="120" placeholder="Bank transfer, reference, etc.">
-        </label>
-      </div>
-
-      <p class="form-error" id="form-error" role="alert"></p>
-
-      <div class="dialog-actions">
-        <button type="button" class="button secondary" id="cancel-dialog">Cancel</button>
-        <button class="button primary" type="submit">Save record</button>
-      </div>
-    </form>
-  </dialog>
-
-  <div id="toast" role="status" aria-live="polite"></div>
-
-  <script type="module" src="js/app.js"></script>
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
