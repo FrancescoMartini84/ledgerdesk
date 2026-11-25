@@ -15,9 +15,7 @@ export function openDatabase() {
           autoIncrement: true
         });
 
-        store.createIndex("type", "type", {
-          unique: false
-        });
+        store.createIndex("type", "type", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("payments")) {
@@ -63,7 +61,6 @@ export async function addRecord(storeName, record) {
   });
 }
 
-// Update an existing record without creating a duplicate.
 export async function updateRecord(storeName, record) {
   const db = await openDatabase();
 
