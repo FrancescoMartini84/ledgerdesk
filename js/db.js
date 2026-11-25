@@ -15,7 +15,9 @@ export function openDatabase() {
           autoIncrement: true
         });
 
-        store.createIndex("type", "type", { unique: false });
+        store.createIndex("type", "type", {
+          unique: false
+        });
       }
 
       if (!db.objectStoreNames.contains("payments")) {
@@ -39,13 +41,12 @@ export async function getAll(storeName) {
   const db = await openDatabase();
 
   return new Promise((resolve, reject) => {
-    const request = db
-      .transaction(storeName, "readonly")
-      .objectStore(storeName)
-      .getAll();
+    const transaction = db.transaction(storeName, "readonly");
+    const request = transaction.objectStore(storeName).getAll();
 
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
+    transaction.onabort = () => reject(transaction.error);
   });
 }
 
@@ -53,12 +54,25 @@ export async function addRecord(storeName, record) {
   const db = await openDatabase();
 
   return new Promise((resolve, reject) => {
-    const request = db
-      .transaction(storeName, "readwrite")
-      .objectStore(storeName)
-      .add(record);
+    const transaction = db.transaction(storeName, "readwrite");
+    const request = transaction.objectStore(storeName).add(record);
 
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
+}
+
+// Update an existing record without creating a duplicate.
+export async function updateRecord(storeName, record) {
+  const db = await openDatabase();
+
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, "readwrite");
+    const request = transaction.objectStore(storeName).put(record);
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    transaction.onabort = () => reject(transaction.error);
   });
 }
