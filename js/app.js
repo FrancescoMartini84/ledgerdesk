@@ -638,3 +638,51 @@ refresh().catch(error => {
     "Database could not be opened. Try a current browser."
   );
 });
+
+
+/* =================================
+   DOCUMENT EDIT ACTIONS
+================================= */
+
+.edit-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 7px 13px;
+
+  border: 1px solid #d8e2f5;
+  border-radius: 6px;
+
+  background: #f0f4ff;
+  color: #315fce;
+
+  font: 600 11px 'DM Sans', sans-serif;
+
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.edit-button:hover {
+  background: #315fce;
+  border-color: #315fce;
+  color: #ffffff;
+
+  box-shadow: 0 3px 8px #315fce25;
+}
+
+.edit-button:active {
+  transform: translateY(1px);
+}
+
+.edit-button:focus-visible {
+  outline: 2px solid #7895e5;
+  outline-offset: 3px;
+}
+
+/* Keep action buttons properly aligned */
+
+td:last-child {
+  text-align: left;
+}
