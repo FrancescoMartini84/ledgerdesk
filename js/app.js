@@ -1,11 +1,16 @@
 
-import { getAll, addRecord } from "./db.js";
+import {
+  getAll,
+  addRecord,
+  updateRecord
+} from "./db.js";
 
 const $ = (id) => document.getElementById(id);
 
 let documents = [];
 let payments = [];
 let toastTimer;
+let editingDocumentId = null;
 
 const money = (value) =>
   new Intl.NumberFormat("en-US", {
@@ -106,7 +111,7 @@ function render() {
   $("recent-rows").innerHTML = recent.map(r => {
     if (r.rowType === "payment") {
       const doc = documents.find(
-        d => d.id === Number(r.documentId)
+        d => Number(d.id) === Number(r.documentId)
       );
 
       return `
@@ -146,7 +151,7 @@ function render() {
     .sort((a, b) => b.date.localeCompare(a.date))
     .map(p => {
       const doc = documents.find(
-        d => d.id === Number(p.documentId)
+        d => Number(d.id) === Number(p.documentId)
       );
 
       return `
@@ -181,6 +186,15 @@ function renderDocuments(type, target, empty) {
       <td class="amount-cell">${money(d.amount)}</td>
       <td class="amount-cell">${money(balance(d))}</td>
       <td>${badge(d)}</td>
+      <td>
+        <button
+          type="button"
+          class="edit-button"
+          data-edit-document="${d.id}"
+        >
+          Edit
+        </button>
+      </td>
     </tr>
   `).join("");
 
@@ -210,14 +224,20 @@ function navigate(view) {
   })[view];
 }
 
-// Open the appropriate form and disable hidden fields.
-function openDialog(type) {
+// Open the appropriate form.
+// Pass an existing document to edit it.
+function openDialog(type, existingDocument = null) {
   $("record-form").reset();
   $("form-error").textContent = "";
 
-  $("record-type").value = type;
+  editingDocumentId = existingDocument
+    ? existingDocument.id
+    : null;
 
   const isPayment = type === "payment";
+  const isEditing = Boolean(existingDocument);
+
+  $("record-type").value = type;
 
   $("document-fields").classList.toggle(
     "hidden",
@@ -241,8 +261,11 @@ function openDialog(type) {
       field.disabled = !isPayment;
     });
 
-  $("dialog-title").textContent =
-    type === "invoice"
+  $("dialog-title").textContent = isEditing
+    ? type === "invoice"
+      ? "Edit customer invoice"
+      : "Edit supplier bill"
+    : type === "invoice"
       ? "Add customer invoice"
       : type === "bill"
         ? "Add supplier bill"
@@ -254,6 +277,14 @@ function openDialog(type) {
   $("issue-date").value = today();
   $("due-date").value = today();
   $("payment-date").value = today();
+
+  if (existingDocument) {
+    $("reference").value = existingDocument.reference;
+    $("counterparty").value = existingDocument.counterparty;
+    $("issue-date").value = existingDocument.issueDate;
+    $("due-date").value = existingDocument.dueDate;
+    $("amount").value = existingDocument.amount;
+  }
 
   if (isPayment) {
     populatePaymentDocuments();
@@ -356,7 +387,7 @@ document.querySelectorAll("[data-go]").forEach(btn => {
   );
 });
 
-// Open record forms
+// Open new record forms
 document.querySelectorAll("[data-add]").forEach(btn => {
   btn.addEventListener("click", () =>
     openDialog(btn.dataset.add)
@@ -366,6 +397,27 @@ document.querySelectorAll("[data-add]").forEach(btn => {
 $("quick-add").addEventListener("click", () =>
   openDialog("invoice")
 );
+
+// Edit existing invoices and bills.
+// Event delegation keeps the buttons working after table re-rendering.
+document.addEventListener("click", event => {
+  const button = event.target.closest("[data-edit-document]");
+
+  if (!button) return;
+
+  const documentId = Number(button.dataset.editDocument);
+
+  const existingDocument = documents.find(
+    d => Number(d.id) === documentId
+  );
+
+  if (!existingDocument) {
+    showToast("Document could not be found.");
+    return;
+  }
+
+  openDialog(existingDocument.type, existingDocument);
+});
 
 $("close-dialog").addEventListener("click", () =>
   $("record-dialog").close()
@@ -380,7 +432,7 @@ $("payment-direction").addEventListener(
   populatePaymentDocuments
 );
 
-// Save records
+// Save new records or update existing documents.
 $("record-form").addEventListener("submit", async event => {
   event.preventDefault();
 
@@ -391,7 +443,7 @@ $("record-form").addEventListener("submit", async event => {
       const docId = Number($("payment-document").value);
 
       const doc = documents.find(
-        d => d.id === docId
+        d => Number(d.id) === docId
       );
 
       const amount = Number($("payment-amount").value);
@@ -423,18 +475,30 @@ $("record-form").addEventListener("submit", async event => {
 
     } else {
       const reference = $("reference").value.trim();
+      const counterparty = $("counterparty").value.trim();
+      const issueDate = $("issue-date").value;
+      const dueDate = $("due-date").value;
+      const amount = Number($("amount").value);
 
-      if (
-        documents.some(
-          d => d.reference.toLowerCase() === reference.toLowerCase()
-        )
-      ) {
+      if (!reference) {
+        throw new Error("Enter a document reference.");
+      }
+
+      if (!counterparty) {
+        throw new Error("Enter a customer or supplier name.");
+      }
+
+      // Exclude the document currently being edited.
+      const duplicate = documents.some(d =>
+        String(d.reference).toLowerCase() === reference.toLowerCase() &&
+        Number(d.id) !== Number(editingDocumentId)
+      );
+
+      if (duplicate) {
         throw new Error(
           "That reference number is already in use."
         );
       }
-
-      const amount = Number($("amount").value);
 
       if (!Number.isFinite(amount) || amount <= 0) {
         throw new Error(
@@ -442,33 +506,79 @@ $("record-form").addEventListener("submit", async event => {
         );
       }
 
-      if ($("due-date").value < $("issue-date").value) {
+      if (dueDate < issueDate) {
         throw new Error(
           "Due date cannot be earlier than issue date."
         );
       }
 
-      await addRecord("documents", {
-        type,
-        reference,
-        counterparty: $("counterparty").value.trim(),
-        issueDate: $("issue-date").value,
-        dueDate: $("due-date").value,
-        amount,
-        createdAt: new Date().toISOString()
-      });
+      if (editingDocumentId !== null) {
+        const existingDocument = documents.find(
+          d => Number(d.id) === Number(editingDocumentId)
+        );
+
+        if (!existingDocument) {
+          throw new Error(
+            "The document being edited could not be found."
+          );
+        }
+
+        const paymentsAlreadyApplied = paidFor(editingDocumentId);
+
+        if (amount + 0.005 < paymentsAlreadyApplied) {
+          throw new Error(
+            `The document total cannot be less than payments already applied (${money(paymentsAlreadyApplied)}).`
+          );
+        }
+
+        // Preserve ID, document type, creation date,
+        // and all existing payment records.
+        const updatedDocument = {
+          ...existingDocument,
+          reference,
+          counterparty,
+          issueDate,
+          dueDate,
+          amount,
+          updatedAt: new Date().toISOString()
+        };
+
+        await updateRecord("documents", updatedDocument);
+
+      } else {
+        await addRecord("documents", {
+          type,
+          reference,
+          counterparty,
+          issueDate,
+          dueDate,
+          amount,
+          createdAt: new Date().toISOString()
+        });
+      }
     }
 
     $("record-dialog").close();
 
+    editingDocumentId = null;
+
     await refresh();
 
-    showToast("Record saved successfully.");
+    showToast(
+      type === "payment"
+        ? "Payment recorded successfully."
+        : "Document saved successfully."
+    );
 
   } catch (error) {
     $("form-error").textContent =
       error.message || "Could not save record.";
   }
+});
+
+// Clear editing state when the dialog closes.
+$("record-dialog").addEventListener("close", () => {
+  editingDocumentId = null;
 });
 
 // CSV exports
