@@ -262,31 +262,7 @@ function openDialog(type) {
 }
 
 
-  $("payment-fields").classList.toggle(
-    "hidden",
-    type !== "payment"
-  );
-
-  $("dialog-title").textContent =
-    type === "invoice"
-      ? "Add customer invoice"
-      : type === "bill"
-        ? "Add supplier bill"
-        : "Record payment";
-
-  $("counterparty-label").firstChild.textContent =
-    type === "bill" ? "Supplier name" : "Customer name";
-
-  $("issue-date").value = today();
-  $("due-date").value = today();
-  $("payment-date").value = today();
-
-  if (type === "payment") {
-    populatePaymentDocuments();
-  }
-
-  $("record-dialog").showModal();
-}
+  
 
 function populatePaymentDocuments() {
   const direction = $("payment-direction").value;
