@@ -1,0 +1,334 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="LedgerDesk — browser-based accounting operations and financial data management.">
+  <title>LedgerDesk | Accounting Operations</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#">
+      <span class="brand-mark">L</span>
+      <span>LedgerDesk<small>FINANCIAL OPERATIONS</small></span>
+    </a>
+
+    <p class="nav-label">WORKSPACE</p>
+
+    <button class="nav-item active" data-view="dashboard">▦ <span>Dashboard</span></button>
+    <button class="nav-item" data-view="receivables">↗ <span>Accounts receivable</span></button>
+    <button class="nav-item" data-view="payables">↙ <span>Accounts payable</span></button>
+    <button class="nav-item" data-view="payments">⇄ <span>Payments</span></button>
+    <button class="nav-item" data-view="reports">▤ <span>Reports & data</span></button>
+
+    <div class="sidebar-bottom">
+      <span class="status-dot"></span> Local workspace
+      <small>Data stays in this browser</small>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ACCOUNTING OPERATIONS</p>
+        <h1 id="page-title">Dashboard</h1>
+      </div>
+      <div class="top-actions">
+        <span class="local-pill">● LOCAL DATABASE</span>
+        <button class="button primary" id="quick-add">＋ New record</button>
+      </div>
+    </header>
+
+    <section id="dashboard-view" class="view">
+      <div class="welcome">
+        <div>
+          <h2>Financial overview</h2>
+          <p>Monitor invoices, obligations and payment activity.</p>
+        </div>
+        <span id="today-label"></span>
+      </div>
+
+      <div class="metrics">
+        <article class="metric">
+          <span>OPEN RECEIVABLES</span>
+          <strong id="metric-ar">$0.00</strong>
+          <small>Unpaid customer invoices</small>
+        </article>
+        <article class="metric">
+          <span>OPEN PAYABLES</span>
+          <strong id="metric-ap">$0.00</strong>
+          <small>Unpaid supplier bills</small>
+        </article>
+        <article class="metric">
+          <span>OVERDUE RECEIVABLES</span>
+          <strong id="metric-overdue">$0.00</strong>
+          <small>Past-due customer balances</small>
+        </article>
+        <article class="metric">
+          <span>RECORDS TRACKED</span>
+          <strong id="metric-count">0</strong>
+          <small>Invoices, bills and payments</small>
+        </article>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <div>
+            <h2>Recent activity</h2>
+            <p>Your latest financial records</p>
+          </div>
+          <button class="button secondary" data-go="receivables">View receivables</button>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>TYPE</th>
+                <th>REFERENCE</th>
+                <th>COUNTERPARTY</th>
+                <th>DATE</th>
+                <th>AMOUNT</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="recent-rows"></tbody>
+          </table>
+        </div>
+
+        <p class="empty-state" id="recent-empty">
+          No records yet. Add an invoice or bill to begin.
+        </p>
+      </div>
+
+      <div class="notice">
+        <strong>Prototype scope:</strong>
+        LedgerDesk is an operational recordkeeping demonstration,
+        not a general ledger, tax system, or substitute for professional
+        accounting review. Data is stored locally in this browser.
+      </div>
+    </section>
+
+    <section id="receivables-view" class="view hidden">
+      <div class="section-intro">
+        <div>
+          <h2>Accounts receivable</h2>
+          <p>Track customer invoices and amounts owed to your business.</p>
+        </div>
+        <button class="button primary" data-add="invoice">＋ Add invoice</button>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>INVOICE</th>
+                <th>CUSTOMER</th>
+                <th>ISSUED</th>
+                <th>DUE</th>
+                <th>INVOICE AMOUNT</th>
+                <th>OPEN BALANCE</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="ar-rows"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="ar-empty">No customer invoices recorded.</p>
+      </div>
+    </section>
+
+    <section id="payables-view" class="view hidden">
+      <div class="section-intro">
+        <div>
+          <h2>Accounts payable</h2>
+          <p>Track supplier bills and amounts your business owes.</p>
+        </div>
+        <button class="button primary" data-add="bill">＋ Add bill</button>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>BILL</th>
+                <th>SUPPLIER</th>
+                <th>ISSUED</th>
+                <th>DUE</th>
+                <th>BILL AMOUNT</th>
+                <th>OPEN BALANCE</th>
+                <th>STATUS</th>
+              </tr>
+            </thead>
+            <tbody id="ap-rows"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="ap-empty">No supplier bills recorded.</p>
+      </div>
+    </section>
+
+    <section id="payments-view" class="view hidden">
+      <div class="section-intro">
+        <div>
+          <h2>Payments</h2>
+          <p>Record receipts and disbursements against existing documents.</p>
+        </div>
+        <button class="button primary" data-add="payment">＋ Record payment</button>
+      </div>
+
+      <div class="panel">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>DIRECTION</th>
+                <th>DOCUMENT</th>
+                <th>COUNTERPARTY</th>
+                <th>AMOUNT</th>
+                <th>NOTE</th>
+              </tr>
+            </thead>
+            <tbody id="payment-rows"></tbody>
+          </table>
+        </div>
+        <p class="empty-state" id="payment-empty">No payments recorded.</p>
+      </div>
+    </section>
+
+    <section id="reports-view" class="view hidden">
+      <div class="section-intro">
+        <div>
+          <h2>Reports & data</h2>
+          <p>Export your records for review or further analysis.</p>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <article class="report-card">
+          <span class="report-icon">↗</span>
+          <h3>Receivables register</h3>
+          <p>Invoices, payments applied and outstanding balances.</p>
+          <button class="button secondary" id="export-ar">Export AR CSV</button>
+        </article>
+
+        <article class="report-card">
+          <span class="report-icon">↙</span>
+          <h3>Payables register</h3>
+          <p>Supplier bills, payments applied and outstanding balances.</p>
+          <button class="button secondary" id="export-ap">Export AP CSV</button>
+        </article>
+
+        <article class="report-card">
+          <span class="report-icon">⇄</span>
+          <h3>Payment register</h3>
+          <p>Recorded receipts and disbursements.</p>
+          <button class="button secondary" id="export-payments">Export payments CSV</button>
+        </article>
+
+        <article class="report-card">
+          <span class="report-icon">⬇</span>
+          <h3>Full data backup</h3>
+          <p>Download all LedgerDesk records as a JSON backup.</p>
+          <button class="button secondary" id="export-backup">Download JSON backup</button>
+        </article>
+      </div>
+
+      <div class="notice warning">
+        <strong>Data safety:</strong>
+        This prototype stores records in the current browser profile.
+        Export regular backups. Clearing browser data or changing devices
+        may make these records unavailable.
+      </div>
+    </section>
+  </main>
+
+  <dialog id="record-dialog">
+    <form id="record-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">LEDGERDESK RECORD</p>
+          <h2 id="dialog-title">New invoice</h2>
+        </div>
+        <button type="button" class="icon-button" id="close-dialog" aria-label="Close">×</button>
+      </div>
+
+      <input type="hidden" id="record-type">
+
+      <div id="document-fields">
+        <label>
+          Reference number
+          <input id="reference" required maxlength="40" placeholder="INV-1001">
+        </label>
+
+        <label id="counterparty-label">
+          Customer name
+          <input id="counterparty" required maxlength="100" placeholder="Business or individual">
+        </label>
+
+        <div class="form-row">
+          <label>
+            Issue date
+            <input id="issue-date" type="date" required>
+          </label>
+          <label>
+            Due date
+            <input id="due-date" type="date" required>
+          </label>
+        </div>
+
+        <label>
+          Amount (USD)
+          <input id="amount" type="number" min="0.01" step="0.01" required placeholder="0.00">
+        </label>
+      </div>
+
+      <div id="payment-fields" class="hidden">
+        <label>
+          Payment direction
+          <select id="payment-direction">
+            <option value="in">Receipt — customer paid us</option>
+            <option value="out">Disbursement — we paid supplier</option>
+          </select>
+        </label>
+
+        <label>
+          Apply to document
+          <select id="payment-document" required></select>
+        </label>
+
+        <div class="form-row">
+          <label>
+            Payment date
+            <input id="payment-date" type="date" required>
+          </label>
+          <label>
+            Amount (USD)
+            <input id="payment-amount" type="number" min="0.01" step="0.01" required>
+          </label>
+        </div>
+
+        <label>
+          Note (optional)
+          <input id="payment-note" maxlength="120" placeholder="Bank transfer, reference, etc.">
+        </label>
+      </div>
+
+      <p class="form-error" id="form-error" role="alert"></p>
+
+      <div class="dialog-actions">
+        <button type="button" class="button secondary" id="cancel-dialog">Cancel</button>
+        <button class="button primary" type="submit">Save record</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
