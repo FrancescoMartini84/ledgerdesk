@@ -210,6 +210,7 @@ function navigate(view) {
   })[view];
 }
 
+
 function openDialog(type) {
   $("record-form").reset();
   $("form-error").textContent = "";
@@ -220,6 +221,46 @@ function openDialog(type) {
     "hidden",
     type === "payment"
   );
+
+  $("payment-fields").classList.toggle(
+    "hidden",
+    type !== "payment"
+  );
+
+  // Disable hidden fields so they don't block form submission.
+  $("document-fields")
+    .querySelectorAll("input, select, textarea")
+    .forEach(field => {
+      field.disabled = type === "payment";
+    });
+
+  $("payment-fields")
+    .querySelectorAll("input, select, textarea")
+    .forEach(field => {
+      field.disabled = type !== "payment";
+    });
+
+  $("dialog-title").textContent =
+    type === "invoice"
+      ? "Add customer invoice"
+      : type === "bill"
+        ? "Add supplier bill"
+        : "Record payment";
+
+  $("counterparty-label").firstChild.textContent =
+    type === "bill" ? "Supplier name" : "Customer name";
+
+  $("issue-date").value = today();
+  $("due-date").value = today();
+  $("payment-date").value = today();
+
+  if (type === "payment") {
+    populatePaymentDocuments();
+  }
+
+  $("record-dialog").showModal();
+}
+
 
   $("payment-fields").classList.toggle(
     "hidden",
