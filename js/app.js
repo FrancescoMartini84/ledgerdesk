@@ -5,168 +5,112 @@ import {
     updateRecord
 } from "./db.js";
 
-const $ = (id) => document.getElementById(id);
+const $ = id => document.getElementById(id);
 
 let documents = [];
 let payments = [];
+let customers = [];
+let suppliers = [];
 let toastTimer;
 let editingDocumentId = null;
+let currentProfile = null;
 
-const money = (value) =>
-    new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD"
-    }).format(Number(value || 0));
+const money = value => new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD"
+}).format(Number(value || 0));
 
 const today = () => {
     const date = new Date();
-    const localDate = new Date(
+    return new Date(
         date.getTime() - date.getTimezoneOffset() * 60000
-    );
-    return localDate.toISOString().slice(0, 10);
+    ).toISOString().slice(0, 10);
 };
 
-const escapeHTML = (value) =>
-    String(value ?? "").replace(/[&<>"']/g, character => ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;"
-    }[character]));
+const escapeHTML = value => String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+}[c]));
 
 function showToast(message) {
     const toast = $("toast");
-    if (!toast) return;
-
     toast.textContent = message;
     toast.classList.add("show");
-
     clearTimeout(toastTimer);
-
-    toastTimer = setTimeout(() => {
-        toast.classList.remove("show");
-    }, 2800);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 2800);
 }
 
 function paidFor(documentId) {
     return payments
-        .filter(payment =>
-            Number(payment.documentId) === Number(documentId)
-        )
-        .reduce((sum, payment) =>
-            sum + Number(payment.amount), 0
-        );
+        .filter(p => Number(p.documentId) === Number(documentId))
+        .reduce((sum, p) => sum + Number(p.amount), 0);
 }
 
 function balance(doc) {
-    return Math.max(
-        0,
-        Number(doc.amount) - paidFor(doc.id)
-    );
+    return Math.max(0, Number(doc.amount) - paidFor(doc.id));
 }
 
 function status(doc) {
-    const openBalance = balance(doc);
-
-    if (openBalance <= 0.005) {
-        return ["Paid", "paid"];
-    }
-
-    if (doc.dueDate < today()) {
-        return ["Overdue", "overdue"];
-    }
-
-    if (paidFor(doc.id) > 0) {
-        return ["Partial", "partial"];
-    }
-
+    if (balance(doc) <= 0.005) return ["Paid", "paid"];
+    if (doc.dueDate < today()) return ["Overdue", "overdue"];
+    if (paidFor(doc.id) > 0) return ["Partial", "partial"];
     return ["Open", "open"];
 }
 
 function badge(doc) {
-    const [label, className] = status(doc);
-
-    return `
-        <span class="status-badge ${className}">
-            ${label}
-        </span>
-    `;
+    const [label, css] = status(doc);
+    return `<span class="status-badge ${css}">${label}</span>`;
 }
 
-/* --------------------------------------------------
-   DATABASE AND INITIALIZATION
--------------------------------------------------- */
+/* DATABASE */
 
 async function refresh() {
-    [documents, payments] = await Promise.all([
+    [
+        documents,
+        payments,
+        customers,
+        suppliers
+    ] = await Promise.all([
         getAll("documents"),
-        getAll("payments")
+        getAll("payments"),
+        getAll("customers"),
+        getAll("suppliers")
     ]);
 
     render();
+    renderContacts();
 }
 
-/* --------------------------------------------------
-   DASHBOARD AND REGISTERS
--------------------------------------------------- */
+/* DASHBOARD */
 
 function render() {
-    const invoices = documents.filter(
-        doc => doc.type === "invoice"
-    );
+    const invoices = documents.filter(d => d.type === "invoice");
+    const bills = documents.filter(d => d.type === "bill");
 
-    const bills = documents.filter(
-        doc => doc.type === "bill"
-    );
+    const receivables = invoices.reduce((s, d) => s + balance(d), 0);
+    const payables = bills.reduce((s, d) => s + balance(d), 0);
 
-    const receivables = invoices.reduce(
-        (sum, doc) => sum + balance(doc),
-        0
-    );
-
-    const payables = bills.reduce(
-        (sum, doc) => sum + balance(doc),
-        0
-    );
-
-    const overdueCount = invoices.filter(
-        doc => status(doc)[0] === "Overdue"
-    ).length;
-
-    // Dashboard metrics
-    $("metric-receivables").textContent =
-        money(receivables);
-
-    $("metric-payables").textContent =
-        money(payables);
-
+    $("metric-receivables").textContent = money(receivables);
+    $("metric-payables").textContent = money(payables);
     $("metric-overdue").textContent =
-        overdueCount;
+        invoices.filter(d => status(d)[0] === "Overdue").length;
+    $("metric-documents").textContent = documents.length;
 
-    $("metric-documents").textContent =
-        documents.length;
+    $("current-date").textContent = new Date().toLocaleDateString(
+        "en-US",
+        { month: "long", day: "numeric", year: "numeric" }
+    );
 
-    $("current-date").textContent =
-        new Date().toLocaleDateString("en-US", {
-            month: "long",
-            day: "numeric",
-            year: "numeric"
-        });
-
-    // Accounts receivable metrics
-    $("ar-total").textContent =
-        money(receivables);
-
+    $("ar-total").textContent = money(receivables);
     $("ar-count").textContent =
-        invoices.filter(doc => balance(doc) > 0.005).length;
+        invoices.filter(d => balance(d) > 0.005).length;
 
-    // Accounts payable metrics
-    $("ap-total").textContent =
-        money(payables);
-
+    $("ap-total").textContent = money(payables);
     $("ap-count").textContent =
-        bills.filter(doc => balance(doc) > 0.005).length;
+        bills.filter(d => balance(d) > 0.005).length;
 
     renderRecentActivity();
     renderDocuments("invoice", "receivables-table");
@@ -176,34 +120,27 @@ function render() {
 
 function renderRecentActivity() {
     const recent = [
-        ...documents.map(doc => ({
-            ...doc,
-            activityType: doc.type,
-            activityDate: doc.issueDate
+        ...documents.map(d => ({
+            ...d,
+            activityType: d.type,
+            activityDate: d.issueDate
         })),
-
-        ...payments.map(payment => ({
-            ...payment,
+        ...payments.map(p => ({
+            ...p,
             activityType: "payment",
-            activityDate: payment.date
+            activityDate: p.date
         }))
-    ]
-        .sort((a, b) => {
-            const dateA = a.createdAt || a.activityDate;
-            const dateB = b.createdAt || b.activityDate;
-
-            return dateB.localeCompare(dateA);
-        })
-        .slice(0, 10);
+    ].sort((a, b) =>
+        (b.createdAt || b.activityDate)
+            .localeCompare(a.createdAt || a.activityDate)
+    ).slice(0, 10);
 
     $("recent-activity").innerHTML = recent.length
         ? recent.map(item => {
             if (item.activityType === "payment") {
                 const doc = documents.find(
-                    record =>
-                        Number(record.id) === Number(item.documentId)
+                    d => Number(d.id) === Number(item.documentId)
                 );
-
                 return `
                     <tr>
                         <td>${escapeHTML(item.date)}</td>
@@ -211,43 +148,27 @@ function renderRecentActivity() {
                         <td>Payment</td>
                         <td>${escapeHTML(doc?.counterparty || "—")}</td>
                         <td>${money(item.amount)}</td>
-                        <td>
-                            <span class="status-badge paid">
-                                Recorded
-                            </span>
-                        </td>
-                    </tr>
-                `;
+                        <td><span class="status-badge paid">Recorded</span></td>
+                    </tr>`;
             }
 
             return `
                 <tr>
                     <td>${escapeHTML(item.issueDate)}</td>
                     <td>${escapeHTML(item.reference)}</td>
-                    <td>
-                        ${item.type === "invoice" ? "Invoice" : "Supplier bill"}
-                    </td>
+                    <td>${item.type === "invoice" ? "Invoice" : "Supplier bill"}</td>
                     <td>${escapeHTML(item.counterparty)}</td>
                     <td>${money(item.amount)}</td>
                     <td>${badge(item)}</td>
-                </tr>
-            `;
+                </tr>`;
         }).join("")
-        : `
-            <tr>
-                <td colspan="6" class="empty-state">
-                    No activity yet.
-                </td>
-            </tr>
-        `;
+        : `<tr><td colspan="6" class="empty-state">No activity yet.</td></tr>`;
 }
 
 function renderDocuments(type, target) {
     const list = documents
-        .filter(doc => doc.type === type)
-        .sort((a, b) =>
-            b.issueDate.localeCompare(a.issueDate)
-        );
+        .filter(d => d.type === type)
+        .sort((a, b) => b.issueDate.localeCompare(a.issueDate));
 
     $(target).innerHTML = list.length
         ? list.map(doc => `
@@ -259,119 +180,40 @@ function renderDocuments(type, target) {
                 <td>${money(doc.amount)}</td>
                 <td>${money(balance(doc))}</td>
                 <td>${badge(doc)}</td>
-                <td>
-                    <button
-                        type="button"
-                        class="edit-button"
-                        data-edit-document="${doc.id}"
-                    >
-                        Edit
-                    </button>
-                </td>
-            </tr>
-        `).join("")
-        : `
-            <tr>
-                <td colspan="8" class="empty-state">
-                    No ${type === "invoice" ? "invoices" : "supplier bills"} recorded yet.
-                </td>
-            </tr>
-        `;
+                <td><button type="button" class="edit-button"
+                    data-edit-document="${doc.id}">Edit</button></td>
+            </tr>`).join("")
+        : `<tr><td colspan="8" class="empty-state">
+            No ${type === "invoice" ? "invoices" : "supplier bills"} recorded yet.
+        </td></tr>`;
 }
 
 function renderPayments() {
-    const sortedPayments = payments
-        .slice()
-        .sort((a, b) => b.date.localeCompare(a.date));
+    const list = payments.slice().sort((a, b) => b.date.localeCompare(a.date));
 
-    $("payments-table").innerHTML = sortedPayments.length
-        ? sortedPayments.map(payment => {
+    $("payments-table").innerHTML = list.length
+        ? list.map(p => {
             const doc = documents.find(
-                record =>
-                    Number(record.id) === Number(payment.documentId)
+                d => Number(d.id) === Number(p.documentId)
             );
-
             const direction =
-                payment.direction === "in" ||
-                payment.direction === "received"
-                    ? "Receipt"
-                    : "Disbursement";
+                p.direction === "in" || p.direction === "received"
+                    ? "Receipt" : "Disbursement";
 
             return `
                 <tr>
-                    <td>${escapeHTML(payment.date)}</td>
+                    <td>${escapeHTML(p.date)}</td>
                     <td>${direction}</td>
                     <td>${escapeHTML(doc?.reference || "—")}</td>
                     <td>${escapeHTML(doc?.counterparty || "—")}</td>
-                    <td>${escapeHTML(payment.note || "—")}</td>
-                    <td>${money(payment.amount)}</td>
-                </tr>
-            `;
+                    <td>${escapeHTML(p.note || "—")}</td>
+                    <td>${money(p.amount)}</td>
+                </tr>`;
         }).join("")
-        : `
-            <tr>
-                <td colspan="6" class="empty-state">
-                    No payments recorded yet.
-                </td>
-            </tr>
-        `;
+        : `<tr><td colspan="6" class="empty-state">No payments recorded yet.</td></tr>`;
 }
 
-/* --------------------------------------------------
-   NAVIGATION
--------------------------------------------------- */
-
-// Create a More screen for the mobile navigation.
-// Payments and Reports remain accessible on small screens.
-function createMoreView() {
-    if ($("more-view")) return;
-
-    const main = document.querySelector(".main");
-
-    const section = document.createElement("section");
-    section.className = "view";
-    section.id = "more-view";
-    section.hidden = true;
-
-    section.innerHTML = `
-        <div class="section-intro">
-            <div>
-                <h2>More</h2>
-                <p>Additional financial workspace tools.</p>
-            </div>
-        </div>
-
-        <div class="report-grid">
-            <article class="panel report-card">
-                <div class="report-icon">⇄</div>
-                <h3>Payments</h3>
-                <p>Review receipts and supplier disbursements.</p>
-                <button
-                    type="button"
-                    class="secondary-button"
-                    data-open-view="payments"
-                >
-                    Open payments
-                </button>
-            </article>
-
-            <article class="panel report-card">
-                <div class="report-icon">▤</div>
-                <h3>Reports & data</h3>
-                <p>Review reports and download your records.</p>
-                <button
-                    type="button"
-                    class="secondary-button"
-                    data-open-view="reports"
-                >
-                    Open reports
-                </button>
-            </article>
-        </div>
-    `;
-
-    main.appendChild(section);
-}
+/* NAVIGATION */
 
 const pageTitles = {
     dashboard: "Dashboard",
@@ -380,83 +222,75 @@ const pageTitles = {
     contacts: "Contacts",
     payments: "Payments",
     reports: "Reports & data",
-    more: "More"
+    more: "More",
+    "contact-profile": "Contact profile"
 };
+
+function createMoreView() {
+    if ($("more-view")) return;
+
+    const section = document.createElement("section");
+    section.className = "view";
+    section.id = "more-view";
+    section.hidden = true;
+    section.innerHTML = `
+        <div class="section-intro">
+            <div><h2>More</h2><p>Additional financial workspace tools.</p></div>
+        </div>
+        <div class="report-grid">
+            <article class="panel report-card">
+                <h3>Payments</h3>
+                <p>Review receipts and supplier disbursements.</p>
+                <button class="secondary-button" data-open-view="payments">Open payments</button>
+            </article>
+            <article class="panel report-card">
+                <h3>Reports & data</h3>
+                <p>Review reports and download your records.</p>
+                <button class="secondary-button" data-open-view="reports">Open reports</button>
+            </article>
+        </div>`;
+    document.querySelector(".main").appendChild(section);
+}
 
 function navigate(view) {
     const target = $(`${view}-view`);
-
     if (!target) {
         showToast("That section is not available.");
         return;
     }
 
     document.querySelectorAll(".view").forEach(section => {
-        section.hidden = section.id !== `${view}-view`;
-        section.classList.toggle(
-            "active",
-            section.id === `${view}-view`
-        );
+        section.hidden = section !== target;
+        section.classList.toggle("active", section === target);
     });
 
-    $("page-title").textContent =
-        pageTitles[view] || "LedgerDesk";
+    $("page-title").textContent = pageTitles[view] || "LedgerDesk";
 
-    document.querySelectorAll(
-        ".nav-item, .mobile-nav-item"
-    ).forEach(button => {
+    document.querySelectorAll(".nav-item, .mobile-nav-item").forEach(button => {
         const active = button.dataset.view === view;
-
         button.classList.toggle("active", active);
-
-        if (active) {
-            button.setAttribute("aria-current", "page");
-        } else {
-            button.removeAttribute("aria-current");
-        }
+        if (active) button.setAttribute("aria-current", "page");
+        else button.removeAttribute("aria-current");
     });
 
-    window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 createMoreView();
 
-// Desktop navigation
-document.querySelectorAll(".nav-item").forEach(button => {
-    button.addEventListener("click", () => {
-        navigate(button.dataset.view);
-    });
+document.querySelectorAll(".nav-item, .mobile-nav-item").forEach(button => {
+    button.addEventListener("click", () => navigate(button.dataset.view));
 });
 
-// Mobile navigation
-document.querySelectorAll(".mobile-nav-item").forEach(button => {
-    button.addEventListener("click", () => {
-        navigate(button.dataset.view);
-    });
-});
-
-// More screen links
 document.addEventListener("click", event => {
-    const button = event.target.closest("[data-open-view]");
+    const viewButton = event.target.closest("[data-open-view]");
+    if (viewButton) navigate(viewButton.dataset.openView);
 
-    if (!button) return;
-
-    navigate(button.dataset.openView);
+    const reportButton = event.target.closest("[data-report]");
+    if (reportButton) navigate(reportButton.dataset.report);
 });
 
-// Reports shortcuts
-document.querySelectorAll("[data-report]").forEach(button => {
-    button.addEventListener("click", () => {
-        navigate(button.dataset.report);
-    });
-});
-
-/* --------------------------------------------------
-   CONTACT TABS
--------------------------------------------------- */
+/* CONTACT DIRECTORIES */
 
 document.querySelectorAll("[data-contact-tab]").forEach(button => {
     button.addEventListener("click", () => {
@@ -464,45 +298,232 @@ document.querySelectorAll("[data-contact-tab]").forEach(button => {
 
         document.querySelectorAll("[data-contact-tab]").forEach(tab => {
             const active = tab.dataset.contactTab === selected;
-
             tab.classList.toggle("active", active);
             tab.setAttribute("aria-selected", String(active));
         });
 
-        $("customers-section").hidden =
-            selected !== "customers";
-
-        $("suppliers-section").hidden =
-            selected !== "suppliers";
+        $("customers-section").hidden = selected !== "customers";
+        $("suppliers-section").hidden = selected !== "suppliers";
     });
 });
 
-// Contact database functionality is not connected yet.
-// These buttons deliberately do not create fake records.
-$("add-customer").addEventListener("click", () => {
-    showToast(
-        "Customer records will be enabled after the database upgrade."
-    );
+function renderContacts() {
+    renderContactTable(customers, "customers-table", "customer");
+    renderContactTable(suppliers, "suppliers-table", "supplier");
+}
+
+function renderContactTable(records, target, type) {
+    $(target).innerHTML = records.length
+        ? records.slice().sort((a, b) =>
+            a.name.localeCompare(b.name)
+        ).map(contact => `
+            <tr>
+                <td>${escapeHTML(contact.code || "—")}</td>
+                <td>${escapeHTML(contact.name)}</td>
+                <td>${escapeHTML(contact.contactPerson || "—")}</td>
+                <td>${escapeHTML(contact.email || "—")}</td>
+                <td>${escapeHTML(contact.phone || "—")}</td>
+                <td><span class="status-badge ${contact.status === "inactive" ? "overdue" : "paid"}">${escapeHTML(contact.status || "active")}</span></td>
+                <td>
+                    <button type="button" class="edit-button"
+                        data-view-contact="${type}:${contact.id}">View</button>
+                    <button type="button" class="edit-button"
+                        data-edit-contact="${type}:${contact.id}">Edit</button>
+                </td>
+            </tr>`).join("")
+        : `<tr><td colspan="7" class="empty-state">
+            No ${type}s registered yet.
+        </td></tr>`;
+}
+
+$("add-customer").addEventListener("click", () => openContactDialog("customer"));
+$("add-supplier").addEventListener("click", () => openContactDialog("supplier"));
+
+function nextCode(records, prefix) {
+    const max = records.reduce((highest, record) => {
+        const match = String(record.code || "").match(/(\d+)$/);
+        return Math.max(highest, match ? Number(match[1]) : 0);
+    }, 0);
+    return `${prefix}-${String(max + 1).padStart(4, "0")}`;
+}
+
+function openContactDialog(type, contact = null) {
+    $("contact-form").reset();
+    $("contact-type").value = type;
+    $("contact-id").value = contact?.id || "";
+
+    $("contact-dialog-title").textContent =
+        contact ? `Edit ${type}` : `Add ${type}`;
+
+    $("save-contact").textContent = contact ? "Save changes" : "Save contact";
+
+    $("contact-name").value = contact?.name || "";
+    $("contact-person").value = contact?.contactPerson || "";
+    $("contact-email").value = contact?.email || "";
+    $("contact-phone").value = contact?.phone || "";
+    $("contact-tax-id").value = contact?.taxId || "";
+    $("contact-address").value = contact?.address || "";
+    $("contact-terms").value = contact?.paymentTerms || "";
+    $("contact-status").value = contact?.status || "active";
+    $("contact-notes").value = contact?.notes || "";
+
+    $("contact-dialog").showModal();
+}
+
+$("close-contact-dialog").addEventListener("click", () => $("contact-dialog").close());
+$("cancel-contact-dialog").addEventListener("click", () => $("contact-dialog").close());
+
+$("contact-form").addEventListener("submit", async event => {
+    event.preventDefault();
+
+    try {
+        const type = $("contact-type").value;
+        const isCustomer = type === "customer";
+        const store = isCustomer ? "customers" : "suppliers";
+        const records = isCustomer ? customers : suppliers;
+        const id = $("contact-id").value;
+
+        const name = $("contact-name").value.trim();
+        if (!name) throw new Error("Enter a contact name.");
+
+        const existing = id
+            ? records.find(record => Number(record.id) === Number(id))
+            : null;
+
+        const record = {
+            ...(existing || {}),
+            code: existing?.code || nextCode(records, isCustomer ? "CUST" : "SUP"),
+            name,
+            contactPerson: $("contact-person").value.trim(),
+            email: $("contact-email").value.trim(),
+            phone: $("contact-phone").value.trim(),
+            taxId: $("contact-tax-id").value.trim(),
+            address: $("contact-address").value.trim(),
+            paymentTerms: $("contact-terms").value.trim(),
+            status: $("contact-status").value,
+            notes: $("contact-notes").value.trim(),
+            createdAt: existing?.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+
+        if (existing) {
+            await updateRecord(store, record);
+        } else {
+            await addRecord(store, record);
+        }
+
+        $("contact-dialog").close();
+        await refresh();
+        showToast(`${type[0].toUpperCase() + type.slice(1)} saved successfully.`);
+    } catch (error) {
+        showToast(error.message || "Could not save contact.");
+    }
 });
 
-$("add-supplier").addEventListener("click", () => {
-    showToast(
-        "Supplier records will be enabled after the database upgrade."
-    );
+/* CONTACT PROFILE */
+
+document.addEventListener("click", event => {
+    const viewButton = event.target.closest("[data-view-contact]");
+    const editButton = event.target.closest("[data-edit-contact]");
+
+    if (viewButton) {
+        const [type, id] = viewButton.dataset.viewContact.split(":");
+        const records = type === "customer" ? customers : suppliers;
+        const contact = records.find(c => Number(c.id) === Number(id));
+        if (contact) showContactProfile(type, contact);
+    }
+
+    if (editButton) {
+        const [type, id] = editButton.dataset.editContact.split(":");
+        const records = type === "customer" ? customers : suppliers;
+        const contact = records.find(c => Number(c.id) === Number(id));
+        if (contact) openContactDialog(type, contact);
+    }
 });
 
-/* --------------------------------------------------
-   DOCUMENT AND PAYMENT DIALOG
--------------------------------------------------- */
+function showContactProfile(type, contact) {
+    currentProfile = { type, contact };
+
+    $("profile-name").textContent = contact.name;
+    $("profile-subtitle").textContent =
+        `${type === "customer" ? "Customer" : "Supplier"} · ${contact.code || ""}`;
+
+    const details = [
+        ["Code", contact.code],
+        ["Contact person", contact.contactPerson],
+        ["Email", contact.email],
+        ["Phone", contact.phone],
+        ["Tax ID", contact.taxId],
+        ["Address", contact.address],
+        ["Payment terms", contact.paymentTerms],
+        ["Status", contact.status],
+        ["Notes", contact.notes]
+    ];
+
+    $("profile-details").innerHTML = `
+        <dl class="profile-detail-list">
+            ${details.map(([label, value]) => `
+                <div><dt>${escapeHTML(label)}</dt><dd>${escapeHTML(value || "—")}</dd></div>
+            `).join("")}
+        </dl>`;
+
+    const linkedDocuments = documents.filter(doc =>
+        type === "customer"
+            ? Number(doc.customerId) === Number(contact.id) ||
+              (!doc.customerId && doc.type === "invoice" &&
+               doc.counterparty === contact.name)
+            : Number(doc.supplierId) === Number(contact.id) ||
+              (!doc.supplierId && doc.type === "bill" &&
+               doc.counterparty === contact.name)
+    );
+
+    $("profile-transactions").innerHTML = linkedDocuments.length
+        ? linkedDocuments.map(doc => `
+            <tr>
+                <td>${escapeHTML(doc.reference)}</td>
+                <td>${escapeHTML(doc.issueDate)}</td>
+                <td>${escapeHTML(doc.dueDate)}</td>
+                <td>${money(doc.amount)}</td>
+                <td>${money(paidFor(doc.id))}</td>
+                <td>${money(balance(doc))}</td>
+                <td>${badge(doc)}</td>
+            </tr>`).join("")
+        : `<tr><td colspan="7" class="empty-state">No transactions linked to this contact yet.</td></tr>`;
+
+    navigate("contact-profile");
+}
+
+$("back-to-contacts").addEventListener("click", () => navigate("contacts"));
+
+$("edit-profile").addEventListener("click", () => {
+    if (currentProfile) {
+        openContactDialog(currentProfile.type, currentProfile.contact);
+    }
+});
+
+/* DOCUMENT AND PAYMENT DIALOG */
+
+function populateCounterparties(type, selectedId = "") {
+    const records = type === "invoice" ? customers : suppliers;
+    const selector = $("counterparty");
+
+    selector.innerHTML = `<option value="">Select a ${type === "invoice" ? "customer" : "supplier"}</option>`;
+
+    records.filter(c => c.status !== "inactive").forEach(contact => {
+        const option = document.createElement("option");
+        option.value = contact.id;
+        option.textContent = `${contact.code || ""} — ${contact.name}`;
+        selector.appendChild(option);
+    });
+
+    selector.value = selectedId ? String(selectedId) : "";
+    selector.disabled = records.filter(c => c.status !== "inactive").length === 0;
+}
 
 function openDialog(type, existingDocument = null) {
-    const form = $("record-form");
+    $("record-form").reset();
 
-    form.reset();
-
-    editingDocumentId = existingDocument
-        ? existingDocument.id
-        : null;
+    editingDocumentId = existingDocument ? existingDocument.id : null;
 
     const isPayment = type === "payment";
     const isEditing = Boolean(existingDocument);
@@ -513,44 +534,35 @@ function openDialog(type, existingDocument = null) {
     $("document-fields").hidden = isPayment;
     $("payment-fields").hidden = !isPayment;
 
-    $("document-fields")
-        .querySelectorAll("input, select, textarea")
-        .forEach(field => {
-            field.disabled = isPayment;
-        });
+    $("document-fields").querySelectorAll("input, select, textarea").forEach(field => {
+        field.disabled = isPayment;
+    });
 
-    $("payment-fields")
-        .querySelectorAll("input, select, textarea")
-        .forEach(field => {
-            field.disabled = !isPayment;
-        });
+    $("payment-fields").querySelectorAll("input, select, textarea").forEach(field => {
+        field.disabled = !isPayment;
+    });
 
     $("dialog-title").textContent = isEditing
-        ? type === "invoice"
-            ? "Edit customer invoice"
-            : "Edit supplier bill"
-        : type === "invoice"
-            ? "New customer invoice"
-            : type === "bill"
-                ? "New supplier bill"
-                : "Record payment";
+        ? type === "invoice" ? "Edit customer invoice" : "Edit supplier bill"
+        : type === "invoice" ? "New customer invoice"
+        : type === "bill" ? "New supplier bill" : "Record payment";
 
-    $("save-record").textContent = isEditing
-        ? "Save changes"
-        : "Save record";
+    $("save-record").textContent = isEditing ? "Save changes" : "Save record";
 
     $("issue-date").value = today();
     $("due-date").value = today();
     $("payment-date").value = today();
 
-    $("counterparty").placeholder =
-        type === "bill"
-            ? "Supplier name"
-            : "Customer name";
+    if (!isPayment) {
+        const selectedId = type === "invoice"
+            ? existingDocument?.customerId
+            : existingDocument?.supplierId;
+
+        populateCounterparties(type, selectedId);
+    }
 
     if (existingDocument) {
         $("reference").value = existingDocument.reference;
-        $("counterparty").value = existingDocument.counterparty;
         $("issue-date").value = existingDocument.issueDate;
         $("due-date").value = existingDocument.dueDate;
         $("amount").value = existingDocument.amount;
@@ -565,107 +577,67 @@ function openDialog(type, existingDocument = null) {
 }
 
 function populatePaymentDocuments() {
-    const direction = $("payment-direction").value;
-
-    const type = direction === "received"
-        ? "invoice"
-        : "bill";
-
-    const eligible = documents.filter(doc =>
-        doc.type === type && balance(doc) > 0.005
-    );
+    const type = $("payment-direction").value === "received" ? "invoice" : "bill";
+    const eligible = documents.filter(d => d.type === type && balance(d) > 0.005);
 
     $("payment-document").innerHTML = eligible.length
-        ? eligible.map(doc => `
-            <option value="${doc.id}">
-                ${escapeHTML(doc.reference)} —
-                ${escapeHTML(doc.counterparty)}
-                (${money(balance(doc))} open)
-            </option>
-        `).join("")
-        : `
-            <option value="">
-                No open documents available
-            </option>
-        `;
+        ? eligible.map(d => `<option value="${d.id}">
+            ${escapeHTML(d.reference)} — ${escapeHTML(d.counterparty)}
+            (${money(balance(d))} open)</option>`).join("")
+        : `<option value="">No open documents available</option>`;
 
-    $("payment-document").disabled = eligible.length === 0;
-    $("payment-amount").disabled = eligible.length === 0;
+    $("payment-document").disabled = !eligible.length;
+    $("payment-amount").disabled = !eligible.length;
 }
 
 $("add-invoice").addEventListener("click", () => {
+    if (!customers.some(c => c.status !== "inactive")) {
+        showToast("Add an active customer before creating an invoice.");
+        navigate("contacts");
+        return;
+    }
     openDialog("invoice");
 });
 
 $("add-bill").addEventListener("click", () => {
+    if (!suppliers.some(c => c.status !== "inactive")) {
+        showToast("Add an active supplier before creating a bill.");
+        navigate("contacts");
+        document.querySelector('[data-contact-tab="suppliers"]').click();
+        return;
+    }
     openDialog("bill");
 });
 
-$("add-payment").addEventListener("click", () => {
-    openDialog("payment");
-});
+$("add-payment").addEventListener("click", () => openDialog("payment"));
 
-$("close-dialog").addEventListener("click", () => {
-    $("record-dialog").close();
-});
+$("close-dialog").addEventListener("click", () => $("record-dialog").close());
+$("cancel-dialog").addEventListener("click", () => $("record-dialog").close());
 
-$("cancel-dialog").addEventListener("click", () => {
-    $("record-dialog").close();
-});
+$("payment-direction").addEventListener("change", populatePaymentDocuments);
 
-$("payment-direction").addEventListener(
-    "change",
-    populatePaymentDocuments
-);
-
-// Edit existing invoices and bills.
 document.addEventListener("click", event => {
     const button = event.target.closest("[data-edit-document]");
-
     if (!button) return;
 
-    const documentId = Number(button.dataset.editDocument);
-
-    const existingDocument = documents.find(
-        doc => Number(doc.id) === documentId
-    );
-
-    if (!existingDocument) {
-        showToast("Document could not be found.");
-        return;
-    }
-
-    openDialog(existingDocument.type, existingDocument);
+    const doc = documents.find(d => Number(d.id) === Number(button.dataset.editDocument));
+    if (doc) openDialog(doc.type, doc);
 });
-
-/* --------------------------------------------------
-   SAVE DOCUMENTS AND PAYMENTS
--------------------------------------------------- */
 
 $("record-form").addEventListener("submit", async event => {
     event.preventDefault();
 
-    const type = $("record-type").value;
-
     try {
-        if (type === "payment") {
-            await savePayment();
-        } else {
-            await saveDocument(type);
-        }
+        const type = $("record-type").value;
+
+        if (type === "payment") await savePayment();
+        else await saveDocument(type);
 
         $("record-dialog").close();
-
         editingDocumentId = null;
-
         await refresh();
 
-        showToast(
-            type === "payment"
-                ? "Payment recorded successfully."
-                : "Document saved successfully."
-        );
-
+        showToast(type === "payment" ? "Payment recorded successfully." : "Document saved successfully.");
     } catch (error) {
         showToast(error.message || "Could not save record.");
     }
@@ -673,40 +645,18 @@ $("record-form").addEventListener("submit", async event => {
 
 async function savePayment() {
     const docId = Number($("payment-document").value);
-
-    const doc = documents.find(
-        record => Number(record.id) === docId
-    );
-
+    const doc = documents.find(d => Number(d.id) === docId);
     const amount = Number($("payment-amount").value);
 
-    if (!doc) {
-        throw new Error(
-            "Select an open invoice or bill first."
-        );
-    }
-
-    if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error("Enter a valid payment amount.");
-    }
-
+    if (!doc) throw new Error("Select an open invoice or bill first.");
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Enter a valid payment amount.");
     if (amount > balance(doc) + 0.005) {
-        throw new Error(
-            `Payment exceeds the open balance of ${money(balance(doc))}.`
-        );
+        throw new Error(`Payment exceeds the open balance of ${money(balance(doc))}.`);
     }
-
-    const selectedDirection = $("payment-direction").value;
-
-    // Keep the existing database convention:
-    // "in" = money received; "out" = money paid.
-    const direction = selectedDirection === "received"
-        ? "in"
-        : "out";
 
     await addRecord("payments", {
         documentId: docId,
-        direction,
+        direction: $("payment-direction").value === "received" ? "in" : "out",
         date: $("payment-date").value,
         amount,
         note: $("payment-note").value.trim(),
@@ -716,84 +666,66 @@ async function savePayment() {
 
 async function saveDocument(type) {
     const reference = $("reference").value.trim();
-    const counterparty = $("counterparty").value.trim();
+    const contactId = Number($("counterparty").value);
+    const amount = Number($("amount").value);
     const issueDate = $("issue-date").value;
     const dueDate = $("due-date").value;
-    const amount = Number($("amount").value);
 
-    if (!reference) {
-        throw new Error("Enter a document reference.");
-    }
-
-    if (!counterparty) {
-        throw new Error("Enter a customer or supplier name.");
-    }
-
-    const duplicate = documents.some(doc =>
-        String(doc.reference).toLowerCase() === reference.toLowerCase() &&
-        Number(doc.id) !== Number(editingDocumentId)
+    const records = type === "invoice" ? customers : suppliers;
+    const contact = records.find(c =>
+        Number(c.id) === contactId && c.status !== "inactive"
     );
 
-    if (duplicate) {
-        throw new Error(
-            "That reference number is already in use."
-        );
+    if (!reference) throw new Error("Enter a document reference.");
+    if (!contact) throw new Error("Select an active customer or supplier.");
+
+    if (documents.some(d =>
+        d.reference.toLowerCase() === reference.toLowerCase() &&
+        Number(d.id) !== Number(editingDocumentId)
+    )) {
+        throw new Error("That reference number is already in use.");
     }
 
     if (!Number.isFinite(amount) || amount <= 0) {
-        throw new Error(
-            "Enter an amount greater than zero."
-        );
+        throw new Error("Enter an amount greater than zero.");
     }
 
-    if (dueDate < issueDate) {
-        throw new Error(
-            "Due date cannot be earlier than issue date."
-        );
+    if (!issueDate || !dueDate || dueDate < issueDate) {
+        throw new Error("Due date cannot be earlier than issue date.");
     }
+
+    const linkFields = type === "invoice"
+        ? { customerId: contact.id, supplierId: undefined }
+        : { supplierId: contact.id, customerId: undefined };
 
     if (editingDocumentId !== null) {
-        const existingDocument = documents.find(
-            doc => Number(doc.id) === Number(editingDocumentId)
+        const existing = documents.find(d =>
+            Number(d.id) === Number(editingDocumentId)
         );
 
-        if (!existingDocument) {
-            throw new Error(
-                "The document being edited could not be found."
-            );
+        if (!existing) throw new Error("Document could not be found.");
+
+        const paymentsApplied = paidFor(editingDocumentId);
+        if (amount + 0.005 < paymentsApplied) {
+            throw new Error(`Total cannot be less than payments already applied (${money(paymentsApplied)}).`);
         }
 
-        const paymentsAlreadyApplied =
-            paidFor(editingDocumentId);
-
-        if (amount + 0.005 < paymentsAlreadyApplied) {
-            throw new Error(
-                `The document total cannot be less than payments already applied (${money(paymentsAlreadyApplied)}).`
-            );
-        }
-
-        // Preserve ID, document type, creation date,
-        // and existing payment records.
-        const updatedDocument = {
-            ...existingDocument,
+        await updateRecord("documents", {
+            ...existing,
+            ...linkFields,
             reference,
-            counterparty,
+            counterparty: contact.name,
             issueDate,
             dueDate,
             amount,
             updatedAt: new Date().toISOString()
-        };
-
-        await updateRecord(
-            "documents",
-            updatedDocument
-        );
-
+        });
     } else {
         await addRecord("documents", {
             type,
+            ...linkFields,
             reference,
-            counterparty,
+            counterparty: contact.name,
             issueDate,
             dueDate,
             amount,
@@ -806,108 +738,67 @@ $("record-dialog").addEventListener("close", () => {
     editingDocumentId = null;
 });
 
-/* --------------------------------------------------
-   CSV EXPORT
--------------------------------------------------- */
+/* CSV EXPORT */
 
 function csvDownload(filename, rows) {
     const csv = rows.map(row =>
-        row.map(value =>
-            `"${String(value ?? "").replace(/"/g, '""')}"`
-        ).join(",")
+        row.map(value => `"${String(value ?? "").replace(/"/g, '""')}"`).join(",")
     ).join("\r\n");
 
-    const blob = new Blob(
-        ["\ufeff" + csv],
-        { type: "text/csv;charset=utf-8" }
-    );
+    const blob = new Blob(["\ufeff" + csv], {
+        type: "text/csv;charset=utf-8"
+    });
 
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
     link.click();
-
     URL.revokeObjectURL(url);
 }
 
-function exportAllDocuments() {
-    csvDownload(
-        "ledgerdesk-document-register.csv",
-        [
-            [
-                "Type",
-                "Reference",
-                "Customer or Supplier",
-                "Issue Date",
-                "Due Date",
-                "Original Amount",
-                "Payments Applied",
-                "Open Balance",
-                "Status"
-            ],
-
-            ...documents.map(doc => [
-                doc.type,
-                doc.reference,
-                doc.counterparty,
-                doc.issueDate,
-                doc.dueDate,
-                doc.amount,
-                paidFor(doc.id),
-                balance(doc),
-                status(doc)[0]
-            ])
-        ]
-    );
-
+$("export-csv").addEventListener("click", () => {
+    csvDownload("ledgerdesk-document-register.csv", [
+        ["Type", "Reference", "Customer or Supplier", "Issue Date", "Due Date", "Original Amount", "Payments Applied", "Open Balance", "Status"],
+        ...documents.map(d => [
+            d.type, d.reference, d.counterparty, d.issueDate, d.dueDate,
+            d.amount, paidFor(d.id), balance(d), status(d)[0]
+        ])
+    ]);
     showToast("CSV export prepared.");
-}
+});
 
-$("export-csv").addEventListener(
-    "click",
-    exportAllDocuments
-);
-
-/* --------------------------------------------------
-   JSON BACKUP
--------------------------------------------------- */
+/* COMPLETE JSON BACKUP */
 
 $("export-json").addEventListener("click", () => {
     const backup = {
         application: "LedgerDesk",
-        version: 1,
+        version: 2,
+        databaseVersion: 2,
         exportedAt: new Date().toISOString(),
         documents,
-        payments
+        payments,
+        customers,
+        suppliers
     };
 
-    const blob = new Blob(
-        [JSON.stringify(backup, null, 2)],
-        { type: "application/json" }
-    );
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+        type: "application/json"
+    });
 
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement("a");
     link.href = url;
     link.download = "ledgerdesk-backup.json";
     link.click();
-
     URL.revokeObjectURL(url);
 
-    showToast("JSON backup prepared.");
+    showToast("Complete JSON backup prepared.");
 });
 
-/* --------------------------------------------------
-   START APPLICATION
--------------------------------------------------- */
+/* STARTUP */
 
 refresh().catch(error => {
     console.error("LedgerDesk initialization error:", error);
-
-    showToast(
-        "Database could not be opened. Check your browser."
-    );
+    showToast("Database could not be opened. Check your browser.");
 });
